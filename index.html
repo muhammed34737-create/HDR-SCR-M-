@@ -10,87 +10,54 @@
 <style>
 *{box-sizing:border-box}
 body{
-  margin:0;
-  background:#08090d;
-  color:#fff;
+  margin:0;background:#08090d;color:#fff;
   font-family:Arial,sans-serif
 }
 header{
-  text-align:center;
-  padding:28px 15px;
-  background:#11131a;
-  border-bottom:1px solid #292d38
+  text-align:center;padding:28px 15px;
+  background:#11131a;border-bottom:1px solid #292d38
 }
-.logo{
-  font-size:40px;
-  font-weight:900;
-  letter-spacing:7px
-}
+.logo{font-size:40px;font-weight:900;letter-spacing:7px}
 .sub{color:#999;margin-top:5px}
 .container{max-width:700px;margin:auto;padding:20px}
 .card{
-  background:#11131a;
-  border:1px solid #292d38;
-  border-radius:15px;
-  padding:20px
+  background:#11131a;border:1px solid #292d38;
+  border-radius:15px;padding:20px
 }
 .title{font-size:23px;font-weight:bold}
 .info{color:#aaa;line-height:1.7;margin:10px 0 20px}
-.slots{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px
-}
+.slots{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .slot{
-  background:#171a22;
-  border:1px solid #303542;
-  border-radius:10px;
-  padding:15px 8px;
-  text-align:center;
-  font-weight:bold;
-  cursor:pointer
+  background:#171a22;border:1px solid #303542;
+  border-radius:10px;padding:15px 8px;
+  text-align:center;font-weight:bold;cursor:pointer
 }
-.slot.full{
-  background:#28171a;
-  color:#ff7777;
-  cursor:not-allowed
-}
+.slot.full{background:#28171a;color:#ff7777}
+.slot.admin{cursor:pointer}
 .modal{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.82);
-  padding:20px;
-  overflow:auto
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.82);padding:20px;overflow:auto
 }
 .box{
-  max-width:500px;
-  margin:30px auto;
-  padding:22px;
-  background:#11131a;
-  border:1px solid #303542;
-  border-radius:15px
+  max-width:500px;margin:30px auto;padding:22px;
+  background:#11131a;border:1px solid #303542;border-radius:15px
 }
 .close{text-align:right;font-size:24px;cursor:pointer;color:#aaa}
 input{
-  width:100%;
-  padding:13px;
-  margin:6px 0 12px;
-  background:#08090d;
-  color:#fff;
-  border:1px solid #343846;
+  width:100%;padding:13px;margin:6px 0 12px;
+  background:#08090d;color:#fff;border:1px solid #343846;
   border-radius:8px
 }
 label{color:#aaa;font-size:14px}
 button{
-  width:100%;
-  padding:14px;
-  border:0;
-  border-radius:9px;
-  font-weight:bold;
-  cursor:pointer
+  width:100%;padding:14px;border:0;border-radius:9px;
+  font-weight:bold;cursor:pointer;margin-top:8px
 }
 .take{background:#fff;color:#000}
+.release{background:#b91c1c;color:#fff}
+.login{background:#fff;color:#000}
+.logout{background:#292d38;color:#fff}
+#adminArea{display:none;margin-top:20px}
 </style>
 </head>
 
@@ -103,6 +70,7 @@ button{
 
 <div class="container">
   <div class="card">
+
     <div class="title">🏆 19:00 SCRIM</div>
 
     <div class="info">
@@ -114,6 +82,16 @@ button{
     <div class="slots" id="slots">
       Yükleniyor...
     </div>
+
+    <div id="adminArea">
+      <button class="login" onclick="adminLogin()">
+        🔐 ADMİN GİRİŞİ
+      </button>
+      <button class="logout" onclick="adminLogout()">
+        ÇIKIŞ YAP
+      </button>
+    </div>
+
   </div>
 </div>
 
@@ -149,7 +127,12 @@ button{
 const SUPABASE_URL =
 "https://vidnqfxdkptytdlqlbfq.supabase.co";
 
-const SUPABASE_KEY ="sb_publishable_poE5h-IovlHjzTUrcCAbtw_Q_12eHGb";
+/*
+  BURAYA KENDİ PUBLISHABLE KEY'İNİ YAPIŞTIR.
+  Bana gönderme.
+*/
+const SUPABASE_KEY =
+"sb_publishable_poE5h-IovlHjzTUrcCAbtw_Q_12eHGb"; 
 
 const db = supabase.createClient(
   SUPABASE_URL,
@@ -157,8 +140,29 @@ const db = supabase.createClient(
 );
 
 let selectedSlot = null;
+let isAdmin = false;
+
+async function checkAdmin(){
+
+  const {data:{user}} = await db.auth.getUser();
+
+  if(!user){
+    isAdmin = false;
+    return;
+  }
+
+  const {data,error} = await db
+    .from("admins")
+    .select("user_id")
+    .eq("user_id",user.id)
+    .maybeSingle();
+
+  isAdmin = !error && !!data;
+}
 
 async function loadSlots(){
+
+  await checkAdmin();
 
   const {data,error} = await db
     .from("slots")
@@ -190,6 +194,13 @@ async function loadSlots(){
         "<br>🔴 " +
         escapeHtml(slot.team_name);
 
+      if(isAdmin){
+        div.classList.add("admin");
+
+        div.onclick = () =>
+          releaseSlot(slot.slot_no);
+      }
+
     }else{
 
       div.innerHTML =
@@ -197,11 +208,15 @@ async function loadSlots(){
         String(slot.slot_no).padStart(2,"0") +
         "<br>🟢 BOŞ";
 
-      div.onclick = () => openSlot(slot.slot_no);
+      div.onclick = () =>
+        openSlot(slot.slot_no);
     }
 
     slots.appendChild(div);
   });
+
+  document.getElementById("adminArea").style.display =
+    isAdmin ? "block" : "none";
 }
 
 function openSlot(slot){
@@ -210,6 +225,12 @@ function openSlot(slot){
 
   document.getElementById("slotTitle").innerText =
     "SLOT " + String(slot).padStart(2,"0");
+
+  document.getElementById("team").value = "";
+  document.getElementById("p1").value = "";
+  document.getElementById("p2").value = "";
+  document.getElementById("p3").value = "";
+  document.getElementById("p4").value = "";
 
   document.getElementById("modal").style.display = "block";
 }
@@ -240,7 +261,7 @@ async function takeSlot(){
     return;
   }
 
-  const {data,error} = await db.rpc(
+  const {error} = await db.rpc(
     "claim_slot",
     {
       p_slot_no:selectedSlot,
@@ -276,12 +297,87 @@ async function takeSlot(){
   loadSlots();
 }
 
+async function releaseSlot(slot){
+
+  if(!isAdmin){
+    alert("Admin yetkisi gerekli.");
+    return;
+  }
+
+  const ok = confirm(
+    "SLOT " +
+    String(slot).padStart(2,"0") +
+    " boşaltılsın mı?"
+  );
+
+  if(!ok) return;
+
+  const {error} = await db.rpc(
+    "release_slot",
+    {p_slot_no:slot}
+  );
+
+  if(error){
+    alert("Slot boşaltılamadı.");
+    console.error(error);
+    return;
+  }
+
+  alert(
+    "✅ SLOT " +
+    String(slot).padStart(2,"0") +
+    " boşaltıldı."
+  );
+
+  loadSlots();
+}
+
+async function adminLogin(){
+
+  const email = prompt("Admin e-postası:");
+
+  if(!email) return;
+
+  const password = prompt("Admin şifresi:");
+
+  if(!password) return;
+
+  const {error} = await db.auth.signInWithPassword({
+    email:email,
+    password:password
+  });
+
+  if(error){
+    alert("Giriş başarısız.");
+    console.error(error);
+    return;
+  }
+
+  alert("✅ Admin girişi başarılı.");
+  loadSlots();
+}
+
+async function adminLogout(){
+
+  await db.auth.signOut();
+
+  isAdmin = false;
+
+  alert("Admin çıkışı yapıldı.");
+
+  loadSlots();
+}
+
 function escapeHtml(text){
 
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
+
+db.auth.onAuthStateChange(() => {
+  setTimeout(loadSlots,0);
+});
 
 loadSlots();
 
