@@ -218,6 +218,25 @@ async function loadSlots(){
   document.getElementById("adminArea").style.display = "block";
 }
 
+function showAdminSlot(slot){
+
+  const info =
+    "SLOT " + String(slot.slot_no).padStart(2,"0") +
+    "\n\nTakım: " + (slot.team_name || "—") +
+    "\nKaptan: " + (slot.captain_id || "—") +
+    "\nOyuncu 2: " + (slot.player2_id || "—") +
+    "\nOyuncu 3: " + (slot.player3_id || "—") +
+    "\nOyuncu 4: " + (slot.player4_id || "—");
+
+  const ok = confirm(
+    info + "\n\nBu slotu boşaltmak ister misin?"
+  );
+
+  if(ok){
+    releaseSlot(slot.slot_no);
+  }
+}
+
 function openSlot(slot){
 
   selectedSlot = slot;
