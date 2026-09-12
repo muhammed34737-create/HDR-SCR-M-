@@ -195,10 +195,10 @@ async function loadSlots(){
         escapeHtml(slot.team_name);
 
       if(isAdmin){
-        div.classList.add("admin");
+  div.classList.add("admin");
 
-        div.onclick = () =>
-          releaseSlot(slot.slot_no);
+  div.onclick = () =>
+    showAdminSlot(slot);
       }
 
     }else{
